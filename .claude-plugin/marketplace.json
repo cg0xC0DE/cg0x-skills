@@ -1,0 +1,23 @@
+{
+  "name": "cg0x-skills",
+  "owner": {
+    "name": "cg0x"
+  },
+  "metadata": {
+    "description": "Skills shared by cg0x for development workflow and project automation",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "dev-tools",
+      "description": "Development, deployment, and project automation skills",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/cg0x-init-maker",
+        "./skills/cg0x-dev-standards",
+        "./skills/cg0x-subagent-team"
+      ]
+    }
+  ]
+}
