@@ -1,14 +1,15 @@
 ---
 name: cg0x-init-maker
 description: >
-  Generates Windows init.bat one-click initialization scripts for open-source projects.
-  Use when user asks to create a setup/init/deploy script for a project with Python backend
-  and HTML+JS+CSS frontend. Covers dependency checking, automated installation, and
-  credential configuration. Triggers: "初始化脚本", "一键部署", "init script", "init.bat",
+  Generates cross-platform (Windows init.cmd + macOS init.sh) one-click initialization
+  scripts for open-source projects. Use when user asks to create a setup/init/deploy script
+  for a project with Python backend and HTML+JS+CSS frontend. Covers dependency checking,
+  automated installation, and credential configuration.
+  Triggers: "初始化脚本", "一键部署", "init script", "init.bat", "init.sh",
   "项目初始化", "one-click setup".
 ---
 
-# Generate Windows Init Script
+# Generate Init Script (Windows + macOS)
 
 ## Usage
 
@@ -32,16 +33,20 @@ This skill targets **frontend-backend separated projects** where:
 
 - **Frontend**: pure HTML + JS + CSS (no build toolchain required beyond npm)
 - **Backend**: Python
+- **OS**: Windows 10/11 or macOS (generate platform-appropriate scripts)
 
 Other architectures may differ in specifics but can reference this skill as a baseline.
 
+> **Cross-platform rule**: When generating init scripts, **always produce both** `init.cmd` (Windows) and `init.sh` (macOS) unless the user explicitly requests only one platform. The Windows section below is the primary reference; the macOS Adaptation section at the end maps each pattern to its bash equivalent.
+
 ## Output Requirements
 
-- Produce a **single, complete, runnable** `init.bat` file (Windows Batch).
-- **No** PowerShell, WSL, or third-party shell dependencies.
+- Produce **two complete, runnable scripts**: `init.cmd` (Windows Batch) and `init.sh` (Bash).
+- Windows: **No** PowerShell, WSL, or third-party shell dependencies.
+- macOS: **No** zsh-only features; use `#!/usr/bin/env bash` for portability.
 - **No** explanatory prose, pseudocode, or TODO placeholders in the output.
-- All user-facing output uses `echo`; all user input uses `set /p`.
-- The script **must be idempotent** — safe to run repeatedly without side effects.
+- Windows: user output via `echo`, user input via `set /p`. macOS: output via `echo`, input via `read -p`.
+- Both scripts **must be idempotent** — safe to run repeatedly without side effects.
 - Include clear stage banners and error messages so the user always knows what is happening.
 
 ---
@@ -348,6 +353,120 @@ echo "[SKIP] Already exists."
 
 ---
 
+## macOS Adaptation (init.sh)
+
+When generating `init.sh`, apply the following mappings from the Windows patterns above. The three-phase architecture and behavioral rules are **identical** — only the shell syntax differs.
+
+### Shell Header
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+```
+
+### Phase 1 — Dependency Check (Homebrew instead of winget)
+
+```bash
+# Homebrew pre-check (equivalent of winget pre-check)
+BREW_AVAILABLE=0
+if command -v brew &>/dev/null; then BREW_AVAILABLE=1; fi
+
+# Check a dependency (e.g., Python)
+check_python() {
+  if command -v python3 &>/dev/null; then
+    echo "[OK] Python detected."
+    return 0
+  fi
+
+  echo "[MISSING] Python is not detected."
+  if [ "$BREW_AVAILABLE" -eq 1 ]; then
+    read -p "  Install Python via Homebrew? (Y/N): " choice
+    if [[ "$choice" =~ ^[Yy]$ ]]; then
+      echo "[INFO] Installing Python via Homebrew..."
+      brew install python@3.12
+      check_python  # re-check
+      return $?
+    fi
+  fi
+
+  echo "[INFO] Please install Python manually."
+  read -p "  After installing, press ENTER to re-check..."
+  check_python  # re-check
+}
+check_python
+```
+
+**Key differences from Windows:**
+
+| Windows | macOS |
+|---------|-------|
+| `winget install --id ...` | `brew install ...` |
+| `python --version >nul 2>&1` | `command -v python3 &>/dev/null` |
+| `goto`-based retry loops | Recursive function calls or `while` loops |
+| `set /p VAR="prompt: "` | `read -p "prompt: " VAR` |
+
+### Phase 2 — Automated Installation
+
+```bash
+# venv
+if [ ! -d "venv" ]; then
+  echo "[INFO] Creating Python virtual environment..."
+  python3 -m venv venv
+else
+  echo "[SKIP] Virtual environment already exists."
+fi
+
+source venv/bin/activate
+
+echo "[INFO] Installing Python dependencies..."
+pip install -r requirements.txt
+```
+
+**Key differences:**
+
+| Windows | macOS |
+|---------|-------|
+| `call venv\Scripts\activate.bat` | `source venv/bin/activate` |
+| `if exist "venv" goto SKIP` | `if [ -d "venv" ]; then` |
+| `python -m venv venv` | `python3 -m venv venv` |
+
+### Phase 3 — Credential Entry
+
+```bash
+echo "[INFO] Configuring credentials from example_credentials.py ..."
+echo
+echo "  [1/2] OPENAI_API_KEY"
+echo "         Used by: LLM chat module"
+echo "         If not set: AI conversation will be unavailable."
+read -p "  Enter your OPENAI_API_KEY: " OPENAI_API_KEY
+
+# Write credentials file
+cat > credentials.py <<EOF
+OPENAI_API_KEY = '$OPENAI_API_KEY'
+EOF
+echo "[OK] credentials.py created."
+```
+
+**Key differences:**
+
+| Windows | macOS |
+|---------|-------|
+| `set /p VAR="prompt: "` | `read -p "prompt: " VAR` |
+| Sequential `echo >` / `echo >>` | Heredoc `cat > file <<EOF` (safe with special chars) |
+| `!VAR!` (delayed expansion) | `$VAR` |
+
+### Style Guide (Bash)
+
+- Use `#!/usr/bin/env bash` and `set -euo pipefail` at the top
+- Use functions for retry logic instead of `goto` labels
+- Use `[[ ... ]]` for conditionals (safer than `[ ... ]`)
+- Quote all variable expansions: `"$VAR"` not `$VAR`
+- Use `command -v` to check tool availability (not `which`)
+- Ensure the `.sh` file uses **LF line endings** (opposite of Windows CRLF requirement)
+- Run `chmod +x init.sh` after creation
+
+---
+
 ## Common Mistakes to Avoid
 
 | Mistake | Correct behavior |
@@ -364,3 +483,6 @@ echo "[SKIP] Already exists."
 | Use `if (...) else (...)` with multiple statements | Prefer `goto`-based flow for non-trivial branching |
 | Leave `echo` arguments unquoted | Always wrap `echo` text in double quotes to prevent misparse |
 | Save `.bat` with LF line endings | Must use CRLF — LF causes cmd.exe to merge/split lines randomly |
+| Only generate Windows script | Always generate both `init.cmd` and `init.sh` unless user specifies one platform |
+| Use `which` to check commands on macOS | Use `command -v` — `which` is not POSIX and may be absent |
+| Save `.sh` with CRLF line endings | Must use LF — CRLF causes `\r` errors in bash |

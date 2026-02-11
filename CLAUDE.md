@@ -13,7 +13,8 @@ skills/
 └── [dev-tools]                    # Development & automation
     ├── cg0x-init-maker/               # Windows init.bat generator
     ├── cg0x-dev-standards/            # Python web project conventions
-    └── cg0x-subagent-team/            # Multi-agent team management
+    ├── cg0x-subagent-team/            # Multi-agent team management
+    └── cg0x-service-guardian/         # Local service healthcheck generator
 ```
 
 Each skill contains:

@@ -224,6 +224,44 @@ kimi编程模式 写一个爬虫脚本
 
 ---
 
+### cg0x-service-guardian
+
+一个 AI Agent Skill，用于生成 **Python 本地服务健康检查脚本**（守护脚本）。
+
+本地开发环境常常同时跑多个服务（前端、后端、反向代理、隧道等），需要定期自检。朴素的健康检查——单次探测、短超时、盲目重启——经常把瞬时慢响应**误诊**为宕机，产生大量重复进程。Service Guardian 让 Agent 生成带防误诊机制的健康检查脚本。
+
+**核心防误诊机制**：
+
+| 机制 | 作用 |
+|------|------|
+| 重试探测（≥3 次） | 避免因瞬时 GC / IO 抖动导致误判 |
+| 端口占用检测 | 启动前用 `netstat` + bind 确认端口空闲，防止重复启动 |
+| 区分错误类型 | `ConnectionRefused`（真挂了）vs `timeout`（只是慢） |
+| 外部 URL 不自动重启 | ngrok 等外部隧道受网络波动影响，只报告不重启 |
+| 正常时静默退出 | 适合 Task Scheduler / cron 定时调用 |
+
+**脚本四层架构**：
+
+- **配置层** — `SERVICES` + `START_SCRIPTS` 字典，统一管理服务定义和启动命令
+- **探测层** — TCP 端口探测、本地 HTTP 探测、外部 URL 探测，带重试包装
+- **守卫层** — `is_port_in_use()` 端口占用检测 + `start_service()` 安全启动
+- **主循环** — 重试检查 → 诊断 → 守卫 → 修复 → 二次验证
+
+**设计原则**：
+
+- **零外部依赖** — 纯 Python 标准库，无需 pip install
+- **静默正常** — 所有服务正常时无任何输出，exit 0
+- **结构化配置** — 单一 `SERVICES` 字典是检查和重启的唯一数据源
+- **跨平台可适配** — Windows 默认（`DETACHED_PROCESS`），注释说明 Linux 适配方式
+
+```
+# 触发示例
+帮我写一个守护脚本，定时检查本地服务是否正常
+我的自检脚本老是误报服务挂了，帮我修一下
+```
+
+---
+
 ## 项目结构
 
 ```
@@ -235,7 +273,9 @@ cg0x-skills/
 │   │   └── SKILL.md
 │   ├── cg0x-dev-standards/
 │   │   └── SKILL.md
-│   └── cg0x-subagent-team/
+│   ├── cg0x-subagent-team/
+│   │   └── SKILL.md
+│   └── cg0x-service-guardian/
 │       └── SKILL.md
 ├── CLAUDE.md
 ├── README.md

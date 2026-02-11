@@ -1,12 +1,13 @@
 ---
 name: cg0x-dev-standards
 description: >
-  Defines development standards for Python web projects: tech stack, project structure,
-  startup scripts, credential management, nginx/ngrok deployment, and health checks.
+  Defines cross-platform (Windows + macOS) development standards for Python web projects:
+  tech stack, project structure, watchdog startup scripts, credential management,
+  nginx/ngrok deployment, and health checks.
   Use when user starts a new web project, asks about project structure conventions,
   deployment setup, or needs init/start scripts.
   Triggers: "新建项目", "项目规范", "dev standards", "project setup", "部署", "deploy",
-  "nginx", "ngrok", "健康检查", "health check".
+  "nginx", "ngrok", "健康检查", "health check", "启动脚本", "watchdog", "守护".
 ---
 
 # Development Standards
@@ -31,9 +32,11 @@ Set up a new Python + HTML project following dev standards
 
 | Layer | Technology |
 |-------|------------|
+| OS | Windows 10/11 or macOS (both supported) |
 | Frontend | Pure HTML/JS/CSS (no frameworks) |
 | Backend | Python (3.10 or 3.11) |
 | Server | ngrok → nginx → Python HTTP server |
+| Scripts | `.cmd` (Windows) / `.sh` (macOS) — all service scripts use watchdog loops |
 
 ## Data Storage
 
@@ -123,18 +126,22 @@ pip install -r requirements.txt
 
 ### 2. Project Startup Scripts
 
-Each project keeps up to 4 `.cmd` scripts in its **root directory**. Not every project needs all four.
+Each project keeps up to 4 scripts in its **root directory**, with platform-specific extensions. Not every project needs all four.
 
-| Script | Purpose | When Needed |
-|--------|---------|-------------|
-| `init.cmd` | Environment & dependency init | Projects with venv, credentials, or system-level deps |
-| `start_frontend.cmd` | Start frontend server | Always |
-| `start_backend.cmd` | Start backend server | Always |
-| `start_deps.cmd` | Start external dependencies | Only if project relies on external services |
+| Script (Windows / macOS) | Purpose | When Needed |
+|--------------------------|---------|-------------|
+| `init.cmd` / `init.sh` | Environment & dependency init | Projects with venv, credentials, or system-level deps |
+| `start_frontend.cmd` / `start_frontend.sh` | Start frontend server (watchdog) | Always |
+| `start_backend.cmd` / `start_backend.sh` | Start backend server (watchdog) | Always |
+| `start_deps.cmd` / `start_deps.sh` | Start external dependencies (watchdog) | Only if project relies on external services |
 
-#### `init.cmd` — Environment Init
+> **Rule: Every `start_*.cmd` / `start_*.sh` MUST use a watchdog loop.** If the service process exits (crash, OOM, unhandled exception), the script waits a few seconds and restarts it automatically. This eliminates the need for external process managers and makes each script self-healing.
 
-Runs once (or after dependency changes). Typical steps:
+#### `init.cmd` / `init.sh` — Environment Init
+
+Runs once (or after dependency changes). **No watchdog needed** — this is interactive.
+
+Typical steps:
 
 ```
 [0] Preflight checks
@@ -147,18 +154,18 @@ Runs once (or after dependency changes). Typical steps:
 ```
 
 Key patterns:
-- Detect Python via `py -3.10` launcher first, fallback to `python`, verify version `>= 3.10`
+- **Windows**: Detect Python via `py -3.10` launcher first, fallback to `python`, verify version `>= 3.10`. Use `%VENV_PY% -m pip` instead of `pip.exe`.
+- **macOS**: Detect via `python3.10` or `python3`, verify version. Use `$VENV_PY -m pip`.
 - Separate **required** (hard fail) vs **optional** (warn + prompt) dependencies
-- Use `%VENV_PY% -m pip` instead of `pip.exe` to avoid stale launcher paths
 - Write credentials to local files (never commit them)
 
-#### `start_frontend.cmd` / `start_backend.cmd` — Service Start
+#### `start_frontend.cmd` / `start_backend.cmd` — Service Start (Windows)
 
-Common boilerplate:
+**All service scripts MUST include a watchdog loop.** Template:
 
 ```cmd
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 set ROOT=%~dp0
 pushd "%ROOT%"
 
@@ -168,31 +175,77 @@ if not exist "%VENV_PY%" (
   popd & exit /b 1
 )
 
-echo Starting <service> on http://localhost:<PORT> ...
+set RESTART_DELAY=5
+
+:loop
+echo [%date% %time%] Starting <service> on http://localhost:<PORT> ...
 REM Backend:  "%VENV_PY%" app.py --port <PORT>
 REM Frontend: "%VENV_PY%" -m http.server <PORT>   (or: npx serve <dir> -l <PORT>)
+set "exitcode=!errorlevel!"
 
-popd
-endlocal
+echo [%date% %time%] <service> exited (code: !exitcode!). Restarting in %RESTART_DELAY%s ...
+timeout /t %RESTART_DELAY% /nobreak >nul
+goto loop
 ```
 
-Key patterns:
-- Always check venv exists before starting
-- Frontend can use either `python -m http.server` (via backend venv) or `npx serve`
+#### `start_frontend.sh` / `start_backend.sh` — Service Start (macOS)
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+VENV_PY="$ROOT/<backend_dir>/venv/bin/python"
+
+if [ ! -f "$VENV_PY" ]; then
+  echo "venv not found. Please run init.sh first."
+  exit 1
+fi
+
+RESTART_DELAY=5
+
+while true; do
+  echo "[$(date)] Starting <service> on http://localhost:<PORT> ..."
+  # Backend:  "$VENV_PY" app.py --port <PORT>
+  # Frontend: "$VENV_PY" -m http.server <PORT>
+  exitcode=$?
+  echo "[$(date)] <service> exited (code: $exitcode). Restarting in ${RESTART_DELAY}s ..."
+  sleep "$RESTART_DELAY"
+done
+```
+
+> On macOS, remember to `chmod +x start_*.sh` after creation.
+
+Key patterns (both platforms):
+- Always check venv exists before entering the loop
+- Frontend can use either `python -m http.server` or `npx serve`
 - Backend installs its own pip deps at startup if lightweight (e.g. `pip install requests -q`)
 - Hardcode port per project to avoid conflicts
+- Log timestamp on every start/restart for debugging
+- `RESTART_DELAY` is configurable; default 5 seconds
 
-#### `start_deps.cmd` — External Dependencies
+#### `start_deps.cmd` / `start_deps.sh` — External Dependencies
 
-For projects that depend on external services (e.g. ComfyUI, Ollama). Typical pattern is a **watchdog loop** that auto-restarts on crash:
+Same watchdog pattern as above, for external services (e.g. ComfyUI, Ollama):
 
+**Windows:**
 ```cmd
 :loop
-echo Starting <service> ...
+echo [%date% %time%] Starting <service> ...
 call "<service_startup_script>"
-echo Exited (code: %ERRORLEVEL%). Restarting in <N>s ...
+echo [%date% %time%] Exited (code: %ERRORLEVEL%). Restarting in <N>s ...
 timeout /t <N> /nobreak >nul
 goto loop
+```
+
+**macOS:**
+```bash
+while true; do
+  echo "[$(date)] Starting <service> ..."
+  <service_command>
+  echo "[$(date)] Exited (code: $?). Restarting in <N>s ..."
+  sleep <N>
+done
 ```
 
 ### 3. Development & Testing
@@ -326,6 +379,8 @@ For each project's frontend and backend, validate through all 3 access paths:
 
 - ✅ Each Python project gets its own venv (3.10 or 3.11)
 - ✅ Always use venv for pip, python, debugging
+- ✅ **Every `start_*` script MUST have a watchdog loop** — no fire-and-forget
+- ✅ Provide both `.cmd` (Windows) and `.sh` (macOS) versions of all scripts
 - ✅ Start backend first, then update nginx
 - ✅ nginx proxy_pass to 127.0.0.1:BACKEND_PORT
 - ✅ ngrok tunnel (8080 → public) remains active
