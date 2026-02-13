@@ -227,16 +227,104 @@ def is_port_in_use(port):
 
 > **Why not just use `check_port`?** Because `check_port` does a TCP *connect*. A service might be bound to a port but temporarily not accepting connections (e.g., during startup or GC). `netstat`/`lsof`/bind detects the OS-level port reservation regardless of application-layer responsiveness.
 
+### `kill_port_process(port)`
+
+Finds and terminates **all** processes (including zombie / orphan processes) that occupy a given port. This is the **critical cleanup step** before restarting a service — without it, the new process will fail to bind and the port stays deadlocked by a defunct process.
+
+**Strategy (platform-aware):**
+
+**Windows:**
+1. Parse `netstat -ano -p TCP` to find all PIDs listening on the target port.
+2. For each PID, call `taskkill /F /PID <pid>` to force-terminate.
+3. After killing, sleep briefly (0.5s) and verify with `is_port_in_use()` to confirm the port is freed.
+
+**macOS / Linux:**
+1. Run `lsof -iTCP:<port> -sTCP:LISTEN -t` to get all PIDs.
+2. For each PID, send `SIGTERM` first (`os.kill(pid, signal.SIGTERM)`), wait up to 3 seconds.
+3. If the process is still alive, escalate to `SIGKILL` (`os.kill(pid, signal.SIGKILL)`).
+4. After killing, verify with `is_port_in_use()`.
+
+**Reference implementation:**
+```python
+import sys, subprocess, os, signal, time
+
+def kill_port_process(port):
+    """Kill all processes occupying the given port. Returns True if port is freed."""
+    pids = set()
+    try:
+        if sys.platform == 'win32':
+            out = subprocess.check_output(
+                ['netstat', '-ano', '-p', 'TCP'],
+                stderr=subprocess.DEVNULL, text=True, timeout=10)
+            for line in out.splitlines():
+                if f':{port} ' in line and 'LISTENING' in line:
+                    parts = line.split()
+                    if parts:
+                        try:
+                            pids.add(int(parts[-1]))
+                        except ValueError:
+                            pass
+        else:  # macOS / Linux
+            result = subprocess.run(
+                ['lsof', '-iTCP:' + str(port), '-sTCP:LISTEN', '-t'],
+                capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                for line in result.stdout.strip().splitlines():
+                    try:
+                        pids.add(int(line.strip()))
+                    except ValueError:
+                        pass
+    except Exception:
+        pass
+
+    if not pids:
+        return True  # No process found; port should be free
+
+    for pid in pids:
+        try:
+            if sys.platform == 'win32':
+                subprocess.run(
+                    ['taskkill', '/F', '/PID', str(pid)],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+            else:
+                os.kill(pid, signal.SIGTERM)
+                # Wait up to 3 seconds for graceful shutdown
+                for _ in range(6):
+                    time.sleep(0.5)
+                    try:
+                        os.kill(pid, 0)  # Check if still alive
+                    except OSError:
+                        break
+                else:
+                    # Still alive — escalate to SIGKILL
+                    os.kill(pid, signal.SIGKILL)
+        except (OSError, subprocess.SubprocessError):
+            pass  # Process may have already exited
+
+    time.sleep(0.5)  # Brief settle time for OS to release the port
+    return not is_port_in_use(port)
+```
+
+**Design rules:**
+- **Always force-kill on Windows** (`taskkill /F`). Windows has no graceful-signal equivalent for arbitrary processes.
+- **Graceful-then-force on macOS/Linux** (`SIGTERM` → wait → `SIGKILL`). This gives the process a chance to clean up (flush buffers, release locks) before escalating.
+- **Collect all PIDs first**, then kill. A single port can be held by multiple processes (e.g., parent + forked workers).
+- **Verify after killing** — the port might still be in `TIME_WAIT` state briefly. The verification confirms the port is truly freed before proceeding.
+
 ### `start_service(key)`
 
-Launches a service **only if** the guard confirms the port is free.
+Launches a service after ensuring the port is free. If a dead/zombie process occupies the port, it is killed first.
 
 **Flow:**
 
 ```
 1. Look up port from SERVICES[key]
 2. if port and is_port_in_use(port):
-       print SKIP message → return False
+       print "Port occupied, attempting to kill existing process..."
+       freed = kill_port_process(port)
+       if not freed:
+           print FAIL message ("Could not free port") → return False
+       print "Port freed successfully"
 3. Popen(cmd, cwd=cwd, shell=True, creationflags=DETACHED_PROCESS,
          stdout=DEVNULL, stderr=DEVNULL)
 4. return True
@@ -250,10 +338,19 @@ Launches a service **only if** the guard confirms the port is free.
 import sys, subprocess
 
 def start_service(key):
-    # ... port guard check ...
     script = START_SCRIPTS[key]
     cmd = script['cmd']
     cwd = script.get('cwd')
+    port = SERVICES[key].get('port')
+
+    # Guard: kill zombie/orphan process occupying the port, then verify
+    if port and is_port_in_use(port):
+        print(f"  Port {port} is occupied, killing existing process...")
+        freed = kill_port_process(port)
+        if not freed:
+            print(f"  FAIL: Could not free port {port}")
+            return False
+        print(f"  Port {port} freed successfully")
 
     kwargs = dict(cwd=cwd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if sys.platform == 'win32':
@@ -262,6 +359,7 @@ def start_service(key):
         kwargs['start_new_session'] = True
 
     subprocess.Popen(cmd, **kwargs)
+    return True
 ```
 
 ---
@@ -280,7 +378,7 @@ def start_service(key):
 
 3. For each issue:
        if auto_restart is False → print SKIP, continue
-       start_service(key)  ← guard will block if port is occupied
+       start_service(key)  ← guard will kill zombie/orphan processes then launch
        sleep 3 seconds (give the new process time to bind)
 
 4. Re-verify all originally-failed services (with retry)
@@ -311,6 +409,7 @@ Before generating the script, verify these safeguards are all present:
 | 2 | Port timeout ≥ 5 seconds | Slow-response false positives |
 | 3 | HTTP timeout ≥ 8 seconds | Backend cold-start false positives |
 | 4 | `is_port_in_use()` before `Popen` | Duplicate process launches |
+| 4a | `kill_port_process()` before `Popen` when port is occupied | Zombie/orphan processes blocking restart |
 | 5 | `auto_restart: False` for external URLs | Network-jitter-triggered restarts |
 | 6 | Distinguish `ConnectionRefusedError` vs `timeout` | Restarting busy-but-alive services |
 | 7 | `127.0.0.1` instead of `localhost` | DNS resolution adding probe latency |
@@ -340,6 +439,7 @@ Only after gathering this information should you generate the script.
 | Timeout < 3 seconds | Use ≥ 5s for port, ≥ 8s for HTTP |
 | Bare `except:` catching all errors identically | Distinguish `ConnectionRefusedError` (dead) from `timeout` (slow) |
 | Starting a new process without checking if port is occupied | Always call `is_port_in_use(port)` before `Popen` |
+| Skipping restart because port is occupied by a zombie/orphan process | Call `kill_port_process(port)` to terminate the defunct process before launching a new one |
 | Using `localhost` in probes | Use `127.0.0.1` to skip DNS resolution |
 | Auto-restarting external tunnel services on check failure | Mark external URLs with `auto_restart: False` |
 | Printing output when all services are healthy | Stay silent on success (exit 0 with no stdout) |

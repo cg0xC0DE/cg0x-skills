@@ -71,23 +71,60 @@ Store the result in a flag variable (e.g., `set WINGET_AVAILABLE=1` or `0`). Thi
 
 > **winget availability**: Built-in on Windows 11 and Windows 10 2004+. Older systems may not have it — the script must gracefully handle its absence.
 
+#### Required vs Optional dependencies
+
+Classify each dependency as **Required** or **Optional** based on whether the project can function at all without it:
+
+- **Required**: The project cannot start or is fundamentally broken without this tool (e.g., Python for a Python backend). Missing required dependencies **block** — the script must not proceed until they are resolved.
+- **Optional**: The project can run but certain features will be degraded or unavailable (e.g., ffmpeg for audio extraction, ngrok for remote access, GPU/CUDA for acceleration). Missing optional dependencies **do not block** — the user may choose to skip.
+
 #### What to check (derive from the project; common examples)
 
-| Tool       | Detection command          | winget package ID (example)     |
-|------------|----------------------------|---------------------------------|
-| Python     | `python --version`         | `Python.Python.3.12`            |
-| Node.js    | `node --version`           | `OpenJS.NodeJS.LTS`             |
-| npm        | `npm --version`            | *(bundled with Node.js)*        |
-| pip        | `pip --version`            | *(bundled with Python)*         |
-| git        | `git --version`            | `Git.Git`                       |
+| Tool       | Detection command          | winget package ID (example)     | Typical classification |
+|------------|----------------------------|---------------------------------|------------------------|
+| Python     | `python --version`         | `Python.Python.3.12`            | Required               |
+| Node.js    | `node --version`           | `OpenJS.NodeJS.LTS`             | Depends on project     |
+| npm        | `npm --version`            | *(bundled with Node.js)*        | Depends on project     |
+| pip        | `pip --version`            | *(bundled with Python)*         | Required               |
+| git        | `git --version`            | `Git.Git`                       | Required               |
+| ffmpeg     | `ffmpeg -version`          | `Gyan.FFmpeg`                   | Optional               |
+| ngrok      | `ngrok version`            | `Ngrok.Ngrok`                   | Optional               |
+| nvidia-smi | `nvidia-smi`               | *(hardware/driver, no winget)*  | Optional               |
 
 > Only include checks that the project actually requires. Read the project's dependency files (e.g. `requirements.txt`, `package.json`) to decide. The winget package ID should be verified against the actual `winget search` results for accuracy.
+
+#### Impact statements (mandatory)
+
+Every missing dependency message **must** include an **Impact** line that explains, in concrete terms, what feature or workflow breaks or degrades. This helps the user make an informed decision about whether to install now or skip.
+
+Format:
+```
+[MISSING] <tool> is not detected.
+         Impact: <specific feature or workflow that is affected and how>.
+```
+
+Examples:
+```
+[MISSING] ffmpeg is not detected.
+         Impact: Cannot extract audio from video. Video transcription will FAIL.
+
+[MISSING] ngrok is not detected.
+         Impact: Cannot expose the service to the internet. Only accessible
+         from this machine (localhost). Mobile/remote access unavailable.
+
+[MISSING] nvidia-smi is not detected.
+         Impact: Whisper will run on CPU, which is significantly slower.
+         A ~1h podcast may take 30+ min on CPU vs ~3 min on GPU.
+```
+
+> To write accurate impact statements, you **must** trace how the tool is used in the codebase — find the commands, imports, or subprocess calls that depend on it. Do not guess; base explanations on actual code references.
 
 #### Behavioral rules
 
 1. Check each dependency **one at a time**, in sequence.
-2. If a dependency is **missing**:
-   - Print a clear message: `[MISSING] <tool> is not detected.`
+2. If a **required** dependency is **missing**:
+   - Print: `[MISSING] <tool> is not detected.`
+   - Print: `         Impact: <what breaks without it>.`
    - **If winget is available**: ask the user whether to auto-install via winget:
      ```
      Would you like to install <tool> via winget? (Y/N)
@@ -100,16 +137,30 @@ Store the result in a flag variable (e.g., `set WINGET_AVAILABLE=1` or `0`). Thi
      - After ENTER, **re-check the same dependency**.
    - If still missing after re-check → loop back (continue blocking).
    - Only advance to the next check after the current one passes.
-3. After **all** checks pass, proceed to Phase 2.
+3. If an **optional** dependency is **missing**:
+   - Print: `[WARN] <tool> is not detected.`
+   - Print: `       Impact: <what feature degrades or becomes unavailable>.`
+   - **If winget is available** (and the tool has a winget package):
+     - Ask: `Install <tool> now via winget? (Y/N)`
+     - User answers **Y** → run winget install, then print: `Please restart this script after installation to refresh PATH.`
+     - User answers **N** → skip, continue to next check.
+   - **If winget is not available** (or the tool cannot be auto-installed, e.g., CUDA):
+     - Print manual install instructions (URL or steps).
+     - **Do not block** — continue to next check.
+   - Optional dependencies **never** prevent the script from proceeding to Phase 2.
+4. After **all** checks are done (all required checks pass; optional checks reported), proceed to Phase 2.
 
 #### Constraints
 
 - **Never** exit on first failure.
-- **Never** skip a check.
+- **Never** skip a check (but optional checks may be *acknowledged and continued past*).
 - **Never** auto-install without user confirmation — always ask Y/N first.
-- **Must** use `goto`-based label loops for the retry mechanism.
+- **Never** print a missing-dependency message without an Impact line.
+- **Must** use `goto`-based label loops for the retry mechanism (required deps).
+- **Must** classify each dependency as Required or Optional before generating the script.
 - winget install must include `--accept-source-agreements --accept-package-agreements` to avoid interactive prompts from winget itself.
 - After a winget install, the tool may not be in the current session's PATH. If re-check still fails, remind the user to **restart the terminal** or re-run the script, then block.
+- For tools that cannot be installed via winget (e.g., CUDA Toolkit, hardware drivers), only provide manual instructions — never attempt auto-install.
 
 #### Reference implementation pattern
 
@@ -119,11 +170,13 @@ set WINGET_AVAILABLE=0
 winget --version >nul 2>&1
 if not errorlevel 1 set WINGET_AVAILABLE=1
 
+:: ======== Required dependency example ========
 :CHECK_PYTHON
 python --version >nul 2>&1
 if not errorlevel 1 goto PYTHON_OK
 
 echo "[MISSING] Python is not detected."
+echo "         Impact: The backend cannot run at all. This is a hard requirement."
 if %WINGET_AVAILABLE%==0 goto PYTHON_MANUAL
 
 set /p INSTALL_CHOICE="  Install Python via winget? (Y/N): "
@@ -141,6 +194,28 @@ goto CHECK_PYTHON
 
 :PYTHON_OK
 echo "[OK] Python detected."
+
+:: ======== Optional dependency example ========
+:CHECK_FFMPEG
+where ffmpeg >nul 2>nul
+if not errorlevel 1 goto FFMPEG_OK
+
+echo "[WARN] ffmpeg is not detected."
+echo "       Impact: Cannot extract audio from video. Video transcription will FAIL."
+if %WINGET_AVAILABLE%==0 goto FFMPEG_SKIP
+
+choice /m "       Install ffmpeg now via winget"
+if errorlevel 2 goto FFMPEG_SKIP
+
+winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements
+echo "       Please restart this script after installation to refresh PATH."
+goto FFMPEG_DONE
+
+:FFMPEG_SKIP
+echo "       Install manually: https://ffmpeg.org/download.html"
+:FFMPEG_OK
+:FFMPEG_DONE
+echo "[OK] ffmpeg check complete."
 ```
 
 ---
@@ -371,7 +446,7 @@ set -euo pipefail
 BREW_AVAILABLE=0
 if command -v brew &>/dev/null; then BREW_AVAILABLE=1; fi
 
-# Check a dependency (e.g., Python)
+# --- Required dependency example (blocks until resolved) ---
 check_python() {
   if command -v python3 &>/dev/null; then
     echo "[OK] Python detected."
@@ -379,6 +454,7 @@ check_python() {
   fi
 
   echo "[MISSING] Python is not detected."
+  echo "         Impact: The backend cannot run at all. This is a hard requirement."
   if [ "$BREW_AVAILABLE" -eq 1 ]; then
     read -p "  Install Python via Homebrew? (Y/N): " choice
     if [[ "$choice" =~ ^[Yy]$ ]]; then
@@ -394,6 +470,31 @@ check_python() {
   check_python  # re-check
 }
 check_python
+
+# --- Optional dependency example (warns but does not block) ---
+check_ffmpeg() {
+  if command -v ffmpeg &>/dev/null; then
+    echo "[OK] ffmpeg detected."
+    return 0
+  fi
+
+  echo "[WARN] ffmpeg is not detected."
+  echo "       Impact: Cannot extract audio from video. Video transcription will FAIL."
+  if [ "$BREW_AVAILABLE" -eq 1 ]; then
+    read -p "  Install ffmpeg via Homebrew? (Y/N): " choice
+    if [[ "$choice" =~ ^[Yy]$ ]]; then
+      echo "[INFO] Installing ffmpeg via Homebrew..."
+      brew install ffmpeg
+      echo "[INFO] ffmpeg installed."
+      return 0
+    fi
+  fi
+
+  echo "       Install manually: https://ffmpeg.org/download.html"
+  echo "       (Skipping — this is optional.)"
+  return 0  # do not block
+}
+check_ffmpeg
 ```
 
 **Key differences from Windows:**
@@ -471,8 +572,10 @@ echo "[OK] credentials.py created."
 
 | Mistake | Correct behavior |
 |---------|-----------------|
-| Exit immediately when a Phase 1 check fails | Block and retry in a loop (offer winget first if available) |
+| Exit immediately when a Phase 1 check fails | Required: block and retry in a loop. Optional: warn with impact and allow skip |
 | Auto-install via winget without asking the user | Always ask Y/N before running winget install |
+| Print `[MISSING]` without explaining the impact | Every missing-dep message must include an Impact line describing what breaks |
+| Treat all dependencies as required (blocking) | Classify as Required or Optional; only required deps block the script |
 | Ask for user input during Phase 2 | Phase 2 must be fully automated |
 | Prompt all credentials at once | One field at a time, one file at a time |
 | Rename example file before all fields are entered | Rename only after all fields are collected |
