@@ -176,11 +176,20 @@ if not exist "%VENV_PY%" (
 )
 
 set RESTART_DELAY=5
+set PORT=<PORT>
 
 :loop
-echo [%date% %time%] Starting <service> on http://localhost:<PORT> ...
-REM Backend:  "%VENV_PY%" app.py --port <PORT>
-REM Frontend: "%VENV_PY%" -m http.server <PORT>   (or: npx serve <dir> -l <PORT>)
+:: Port cleanup — kill any existing process on the port before starting
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr "LISTENING" ^| findstr ":%PORT% "') do (
+    if not "%%a"=="0" (
+        echo [%date% %time%] Port %PORT% occupied by PID %%a, killing ...
+        taskkill /PID %%a /F >nul 2>&1
+        timeout /t 1 /nobreak >nul
+    )
+)
+echo [%date% %time%] Starting <service> on http://localhost:%PORT% ...
+REM Backend:  "%VENV_PY%" app.py --port %PORT%
+REM Frontend: "%VENV_PY%" -m http.server %PORT%   (or: npx serve <dir> -l %PORT%)
 set "exitcode=!errorlevel!"
 
 echo [%date% %time%] <service> exited (code: !exitcode!). Restarting in %RESTART_DELAY%s ...
@@ -203,11 +212,19 @@ if [ ! -f "$VENV_PY" ]; then
 fi
 
 RESTART_DELAY=5
+PORT=<PORT>
 
 while true; do
-  echo "[$(date)] Starting <service> on http://localhost:<PORT> ..."
-  # Backend:  "$VENV_PY" app.py --port <PORT>
-  # Frontend: "$VENV_PY" -m http.server <PORT>
+  # Port cleanup — kill any existing process on the port before starting
+  PORT_PID=$(lsof -ti :"$PORT" 2>/dev/null || true)
+  if [ -n "$PORT_PID" ]; then
+    echo "[$(date)] Port $PORT occupied by PID $PORT_PID, killing ..."
+    kill -9 $PORT_PID 2>/dev/null || true
+    sleep 1
+  fi
+  echo "[$(date)] Starting <service> on http://localhost:$PORT ..."
+  # Backend:  "$VENV_PY" app.py --port $PORT
+  # Frontend: "$VENV_PY" -m http.server $PORT
   exitcode=$?
   echo "[$(date)] <service> exited (code: $exitcode). Restarting in ${RESTART_DELAY}s ..."
   sleep "$RESTART_DELAY"
@@ -218,6 +235,7 @@ done
 
 Key patterns (both platforms):
 - Always check venv exists before entering the loop
+- **Port cleanup before every start**: Use `netstat` + `taskkill` (Windows) or `lsof` + `kill` (macOS) to kill any existing process on the port. This ensures the script can be re-run without "port already in use" errors
 - Frontend can use either `python -m http.server` or `npx serve`
 - Backend installs its own pip deps at startup if lightweight (e.g. `pip install requests -q`)
 - Hardcode port per project to avoid conflicts
@@ -380,6 +398,7 @@ For each project's frontend and backend, validate through all 3 access paths:
 - ✅ Each Python project gets its own venv (3.10 or 3.11)
 - ✅ Always use venv for pip, python, debugging
 - ✅ **Every `start_*` script MUST have a watchdog loop** — no fire-and-forget
+- ✅ **Every `start_*` script MUST port-cleanup before starting** — kill existing occupant so re-run never fails
 - ✅ Provide both `.cmd` (Windows) and `.sh` (macOS) versions of all scripts
 - ✅ Start backend first, then update nginx
 - ✅ nginx proxy_pass to 127.0.0.1:BACKEND_PORT
