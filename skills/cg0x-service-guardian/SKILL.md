@@ -448,3 +448,93 @@ Only after gathering this information should you generate the script.
 | Hardcoding service list in multiple places | Single `SERVICES` dict is the source of truth for both checks and restarts |
 | Hardcoding `netstat` or `DETACHED_PROCESS` without OS check | Use `sys.platform` to branch: `netstat`/`DETACHED_PROCESS` on Windows, `lsof`/`start_new_session` on macOS |
 | Using `lsof` without `-t` flag on macOS | Always use `-t` (terse) to get just PIDs, easier to parse |
+
+---
+
+## Appendix: Client-Side Load Balancer Probing (Browser/Mobile)
+
+When deploying backend services behind **ngrok** (or similar tunnels) and using a **client-side load balancer** in the frontend to pick the healthiest endpoint, special care must be taken with **CORS (Cross-Origin Resource Sharing)**.
+
+### The Problem
+
+On **mobile browsers** (iOS Safari, Chrome Android), CORS is strictly enforced:
+
+1. **CORS mode fetch** (`mode: "cors"`) fails if the server doesn't return `Access-Control-Allow-Origin` header
+2. **no-cors fallback** (`mode: "no-cors"`) returns an **opaque response** — the status code (200 vs 502) is hidden from JavaScript
+3. A naive load balancer may mark dead endpoints as "healthy" because `fetch()` didn't throw, even though ngrok returned a 502 error page
+
+### Backend Requirements
+
+**Every ngrok-exposed backend MUST include CORS middleware** that:
+
+```python
+# FastAPI example
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],           # Allow any origin (ngrok public URLs)
+    allow_credentials=False,      # Must be False when origins=["*"]
+    allow_methods=["*"],          # Allow all HTTP methods
+    allow_headers=["*"],          # Must include custom headers like "ngrok-skip-browser-warning"
+)
+```
+
+**Critical**: The `allow_headers=["*"]` is required because the load balancer sends `ngrok-skip-browser-warning: 1` to bypass ngrok's interstitial page.
+
+### Client-Side Probing Strategy
+
+```javascript
+async function probeEndpoint(endpoint) {
+  const start = performance.now();
+  
+  // Strategy 1: CORS mode — can read status and body
+  try {
+    const res = await fetch(endpoint, {
+      method: "GET",
+      mode: "cors",
+      signal: AbortSignal.timeout(5000),
+      headers: { "ngrok-skip-browser-warning": "1" },
+    });
+    
+    if (!res.ok) return { endpoint, healthy: false };
+    
+    const text = await res.text();
+    const isNgrokError = text.includes("ngrok") && 
+                        (text.includes("ERR_NGROK") || text.includes("Tunnel not found"));
+    
+    return { 
+      endpoint, 
+      healthy: !isNgrokError, 
+      latency: isNgrokError ? Infinity : performance.now() - start 
+    };
+  } catch {
+    // CORS blocked or network error — try no-cors
+  }
+  
+  // Strategy 2: no-cors mode — opaque response, cannot verify health
+  try {
+    await fetch(endpoint, {
+      method: "HEAD",
+      mode: "no-cors",
+      signal: AbortSignal.timeout(5000),
+    });
+    // Server responded, but we can't distinguish 200 OK from 502 Error
+    // MUST mark as unhealthy to avoid false positives
+    return { endpoint, healthy: false };
+  } catch {
+    return { endpoint, healthy: false };
+  }
+}
+```
+
+### Key Takeaways
+
+| Scenario | Mobile Detection | Desktop Detection |
+|----------|---------------|-------------------|
+| Backend alive + CORS headers | ✅ Works | ✅ Works |
+| Backend alive, no CORS | ❌ Shows offline (safe) | ⚠️ May work (browser-dependent) |
+| Backend dead (502) + no CORS | ❌ Shows offline (correct) | ⚠️ May show online (false positive) |
+| Backend dead (502) + CORS | ❌ Shows offline (correct) | ❌ Shows offline (correct) |
+
+**Bottom line**: Always add CORS middleware to ngrok-exposed backends. Without it, mobile users will see services as offline even when they're running.
