@@ -15,7 +15,6 @@
       "strict": false,
       "skills": [
         "./skills/cg0x-project-launcher",
-        "./skills/cg0x-subagent-team",
         "./skills/cg0x-service-guardian",
         "./skills/cg0x-mq-event",
         "./skills/cg0x-agent-memory",
