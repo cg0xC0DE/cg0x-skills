@@ -10,4 +10,4 @@ REM Clear residual env vars that Explorer may inherit
 set "ANTHROPIC_API_KEY="
 
 REM Change the --model flag to match your pulled model
-claude --setting-sources "project,local" --settings "%~dp0profiles\cc-ollama.json"
+claude --setting-sources "project,local" --settings "%~dp0..\profiles\cc-ollama.json"

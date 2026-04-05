@@ -12,4 +12,4 @@ bash "$SCRIPT_DIR/sync_plugins.sh"
 # Clear residual env vars
 unset ANTHROPIC_API_KEY
 
-claude --setting-sources "project,local" --settings "$SCRIPT_DIR/profiles/cc-origin.json"
+claude --setting-sources "project,local" --settings "$SCRIPT_DIR/../profiles/cc-origin.json"

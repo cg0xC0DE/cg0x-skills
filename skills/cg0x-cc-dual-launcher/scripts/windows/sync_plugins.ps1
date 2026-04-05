@@ -11,7 +11,7 @@
 ##   - Other shared fields (permissions, MCP servers, etc.): UNION by key.
 ##   - Profile-specific fields (env, model): never touched across files.
 
-$profileDir = Join-Path $PSScriptRoot "profiles"
+$profileDir = Join-Path $PSScriptRoot "..\profiles"
 $userSettings = "$env:USERPROFILE\.claude\settings.json"
 
 # Collect all config files that exist

@@ -29,18 +29,25 @@ cc-ollama   →  Ollama        ( local models, fully offline )
 
 ## Ready-to-Use Scripts
 
-All scripts are in `windows/` and `macos/` directories with identical structure:
+All scripts are under `scripts/` following the standard skill directory convention:
 
 ```
-windows/                              macos/
-├── cc_origin.bat                     ├── cc_origin.sh
-├── cc_switch.bat                     ├── cc_switch.sh
-├── cc_ollama.bat                     ├── cc_ollama.sh
-├── sync_plugins.ps1                  ├── sync_plugins.sh
-├── context_menu.reg.template         ├── install_services.sh
-└── profiles/                         └── profiles/
-    ├── cc-origin.json.template           ├── cc-origin.json.template
-    └── cc-ollama.json.template           └── cc-ollama.json.template
+scripts/
+├── windows/
+│   ├── cc_origin.bat
+│   ├── cc_switch.bat
+│   ├── cc_ollama.bat
+│   ├── sync_plugins.ps1
+│   └── context_menu.reg.template
+├── macos/
+│   ├── cc_origin.sh
+│   ├── cc_switch.sh
+│   ├── cc_ollama.sh
+│   ├── sync_plugins.sh
+│   └── install_services.sh
+└── profiles/                          ← shared by both platforms
+    ├── cc-origin.json.template
+    └── cc-ollama.json.template
 ```
 
 ## Installation
@@ -51,8 +58,8 @@ Pick a permanent location and copy the platform scripts there:
 
 | Platform | Default install dir | Source |
 |----------|-------------------|--------|
-| Windows  | `C:\cc-dual-launcher` | `windows/` |
-| macOS    | `~/cc-dual-launcher` | `macos/` |
+| Windows  | `C:\cc-dual-launcher` | `scripts/windows/` + `scripts/profiles/` |
+| macOS    | `~/cc-dual-launcher` | `scripts/macos/` + `scripts/profiles/` |
 
 ### Phase 2 — Collect credentials
 

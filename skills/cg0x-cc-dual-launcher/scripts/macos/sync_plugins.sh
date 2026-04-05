@@ -14,7 +14,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 USER_SETTINGS="$HOME/.claude/settings.json"
-PROFILE_DIR="$SCRIPT_DIR/profiles"
+PROFILE_DIR="$SCRIPT_DIR/../profiles"
 
 # Collect all config files that exist
 CONFIG_FILES=()

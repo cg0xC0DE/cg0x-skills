@@ -10,4 +10,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0sync_plugins.ps1"
 REM Clear residual env vars that Explorer may inherit
 set "ANTHROPIC_API_KEY="
 
-claude --setting-sources "project,local" --settings "%~dp0profiles\cc-origin.json"
+claude --setting-sources "project,local" --settings "%~dp0..\profiles\cc-origin.json"

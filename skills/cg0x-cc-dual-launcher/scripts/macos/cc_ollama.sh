@@ -12,4 +12,4 @@ bash "$SCRIPT_DIR/sync_plugins.sh"
 unset ANTHROPIC_API_KEY
 
 # Change the --model flag to match your pulled model
-claude --setting-sources "project,local" --settings "$SCRIPT_DIR/profiles/cc-ollama.json"
+claude --setting-sources "project,local" --settings "$SCRIPT_DIR/../profiles/cc-ollama.json"
