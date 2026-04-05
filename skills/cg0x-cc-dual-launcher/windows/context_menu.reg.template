@@ -1,0 +1,57 @@
+Windows Registry Editor Version 5.00
+
+; === Clean up old entries ===
+[-HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeOrigin]
+[-HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeOrigin]
+[-HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeSwitch]
+[-HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeSwitch]
+[-HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeOllama]
+[-HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeOllama]
+
+; === Claude Code Origin: Native models via OpenRouter ===
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeOrigin]
+@="Claude Code Origin Here"
+"Icon"="C:\\Windows\\System32\\cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeOrigin\command]
+@="wt.exe -d \"%V\" --title \"CC Origin: %V\" cmd /k \"{INSTALL_DIR}\\cc_origin.bat\""
+
+[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeOrigin]
+@="Claude Code Origin Here"
+"Icon"="C:\\Windows\\System32\\cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeOrigin\command]
+@="wt.exe -d \"%1\" --title \"CC Origin: %1\" cmd /k \"{INSTALL_DIR}\\cc_origin.bat\""
+
+; === Claude Code Switch: Third-party provider via CC Switch ===
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeSwitch]
+@="Claude Code Switch Here"
+"Icon"="C:\\Windows\\System32\\cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeSwitch\command]
+@="wt.exe -d \"%V\" --title \"CC Switch: %V\" cmd /k \"{INSTALL_DIR}\\cc_switch.bat\""
+
+[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeSwitch]
+@="Claude Code Switch Here"
+"Icon"="C:\\Windows\\System32\\cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeSwitch\command]
+@="wt.exe -d \"%1\" --title \"CC Switch: %1\" cmd /k \"{INSTALL_DIR}\\cc_switch.bat\""
+
+; === Claude Code Ollama: Local models via Ollama ===
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeOllama]
+@="Claude Code Ollama Here"
+"Icon"="C:\\Windows\\System32\\cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeOllama\command]
+@="wt.exe -d \"%V\" --title \"CC Ollama: %V\" cmd /k \"{INSTALL_DIR}\\cc_ollama.bat\""
+
+[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeOllama]
+@="Claude Code Ollama Here"
+"Icon"="C:\\Windows\\System32\\cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeOllama\command]
+@="wt.exe -d \"%1\" --title \"CC Ollama: %1\" cmd /k \"{INSTALL_DIR}\\cc_ollama.bat\""

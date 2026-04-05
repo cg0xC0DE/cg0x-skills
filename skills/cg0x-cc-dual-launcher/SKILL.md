@@ -1,241 +1,114 @@
 ---
-name: cc-dual-launcher
-description: Deploy dual Claude Code provider configurations on Windows, enabling two simultaneous Claude Code instances with different providers via right-click context menus. Trigger whenever the user wants to set up, install, or configure dual/multiple Claude Code providers (e.g., OpenRouter + third-party via CCSwitch), or asks about running Claude Code with different models simultaneously, or wants to add "Claude Code Origin Here" / "Claude Code Switch Here" Windows context menu entries. This is a one-time setup skill — use it when the user asks to deploy or install the dual-launcher setup.
+name: cg0x-cc-dual-launcher
+description: >
+  Deploy multi-provider Claude Code setups on Windows and macOS. Supports three
+  simultaneous profiles — OpenRouter (origin), CC Switch (third-party), and Ollama
+  (local) — each with independent right-click / Quick Action launchers that share
+  plugins and marketplaces via automatic sync. Trigger when the user wants to set up,
+  install, or configure multiple Claude Code providers, or asks about running Claude
+  Code with different models simultaneously.
 ---
 
-# CC Dual Launcher — Skill
+# CC Multi-Launcher — Skill
 
-Deploys a dual-provider Claude Code setup on Windows, giving you two independent right-click launchers that share the same plugins and marketplace but use different LLM providers.
+Deploys a multi-provider Claude Code setup on **Windows** and **macOS**, giving you three independent launchers that share the same plugins and marketplace but use different LLM providers.
 
-## How it works
+## Three Profiles
 
 ```
-cc-origin          →  OpenRouter  ( Opus / Sonnet / any OpenAI-compatible model )
-cc-switch          →  CCSwitch   ( third-party, cheap/owned models )
+cc-origin   →  OpenRouter    ( Opus / Sonnet / any OpenRouter model )
+cc-switch   →  CC Switch     ( third-party provider managed externally )
+cc-ollama   →  Ollama        ( local models, fully offline )
 ```
 
-- **cc-origin.json** is the single source of truth for the OpenRouter profile (env vars, plugins, marketplaces).
-- **cc_switch.bat** does NOT use a settings file — CCSwitch manages `~/.claude/settings.json` externally.
-- Both launchers share plugins via `sync_origin_plugins.ps1`, which syncs enabled plugins and marketplaces from the user's existing settings into cc-origin.json.
-- **cc-switch.json is not needed** and should not be created.
+## How It Works
 
-## Prerequisites
+- Each profile has its own JSON config in `profiles/` containing **only** `env` (credentials).
+- `sync_plugins` runs before every launch and **union-merges** `enabledPlugins`, `extraKnownMarketplaces`, `permissions`, and all other shared fields across **all** profile JSONs + `~/.claude/settings.json`. Profile-specific fields (`env`, `model`) are never touched.
+- **cc-switch** does NOT use a settings file — CC Switch manages `~/.claude/settings.json` externally.
 
-Assumes the following are already available:
-- **CCSwitch** installed somewhere
-- **OpenRouter account** with API key
-- **Claude Code** installed and in PATH
+## Ready-to-Use Scripts
 
-## Phase 1 — Collect configuration
+All scripts are in `windows/` and `macos/` directories with identical structure:
 
-Before writing any files, collect these from the user. Do not assume defaults for credentials.
+```
+windows/                              macos/
+├── cc_origin.bat                     ├── cc_origin.sh
+├── cc_switch.bat                     ├── cc_switch.sh
+├── cc_ollama.bat                     ├── cc_ollama.sh
+├── sync_plugins.ps1                  ├── sync_plugins.sh
+├── context_menu.reg.template         ├── install_services.sh
+└── profiles/                         └── profiles/
+    ├── cc-origin.json.template           ├── cc-origin.json.template
+    └── cc-ollama.json.template           └── cc-ollama.json.template
+```
+
+## Installation
+
+### Phase 1 — Choose install directory and copy scripts
+
+Pick a permanent location and copy the platform scripts there:
+
+| Platform | Default install dir | Source |
+|----------|-------------------|--------|
+| Windows  | `C:\cc-dual-launcher` | `windows/` |
+| macOS    | `~/cc-dual-launcher` | `macos/` |
+
+### Phase 2 — Collect credentials
+
+Before creating profiles, collect these from the user. Do not assume defaults for credentials.
 
 | Parameter | Prompt | Default |
 |-----------|--------|---------|
 | `openrouter_key` | OpenRouter API key | (none — required) |
 | `openrouter_base_url` | OpenRouter Base URL | `https://openrouter.ai/api` |
-| `ccswitch_path` | CCSwitch installation path | `C:\Program Files\CCSwitch\ccswitch.exe` |
-| `third_party_model` | Third-party model name | `MiniMax-M2.7` |
-| `third_party_base_url` | Third-party Base URL | `https://api.minimax.io/anthropic` |
-| `third_party_key` | Third-party API key | (none — required) |
+| `ollama_model` | Ollama model name | (none — user must specify) |
 | `proxy_http` | HTTP proxy | (none) |
 | `proxy_https` | HTTPS proxy | (none) |
-| `install_dir` | Installation directory | `C:\cc-dual-launcher` |
-| `origin_default_model` | Default model for cc-origin | `anthropic/claude-4-opus` |
 
-Use `AskUserQuestion` for all of the above. If the user skips a value, apply the default.
+### Phase 3 — Create profile JSONs from templates
 
-## Phase 2 — Create directory structure
+Copy `.template` files to `.json` and substitute user values:
 
-Create at `INSTALL_DIR`:
+- `profiles/cc-origin.json.template` → `profiles/cc-origin.json`
+  - Replace `{OPENROUTER_API_KEY}` with user's key
+  - Replace `{OPENROUTER_BASE_URL|...}` with user's URL (or use the default after `|`)
+  - Add proxy env vars if provided
+
+- `profiles/cc-ollama.json.template` → `profiles/cc-ollama.json`
+  - Usually no changes needed (defaults to `http://localhost:11434`)
+
+**No profile JSON is needed for cc-switch** — CC Switch manages `~/.claude/settings.json` externally.
+
+### Phase 4 — Register launchers
+
+**Windows:** Generate `context_menu.reg` from `context_menu.reg.template` by replacing `{INSTALL_DIR}` with the actual path using `\\` backslashes. Then:
 
 ```
-INSTALL_DIR/
-├── cc_origin.bat
-├── cc_switch.bat
-├── sync_origin_plugins.ps1
-├── cc_launcher.reg
-└── profiles/
-    └── cc-origin.json
+reg import "C:\cc-dual-launcher\context_menu.reg"
 ```
 
-Note: **cc-switch.json is NOT needed** — do not create it.
+Ask the user for explicit confirmation before importing. If it fails, tell the user to run in an elevated CMD.
 
-## Phase 3 — Generate files
+**macOS:** Run the installer script:
 
-All files use `{INSTALL_DIR}` as the installation path. In batch files, `%~dp0` (the directory containing the batch file) is used so scripts work regardless of install location.
-
-### `cc_origin.bat`
-
-```bat
-@echo off
-REM === Claude Code Origin: OpenRouter provider ===
-REM All credentials and env config live in profiles\cc-origin.json (single source of truth).
-REM --setting-sources "project,local" skips ~/.claude/settings.json (managed by CC Switch).
-
-REM Sync shared settings (plugins etc.) from user settings into cc-origin.json
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0sync_origin_plugins.ps1"
-
-REM Clear residual env vars that Explorer may inherit
-set "ANTHROPIC_API_KEY="
-
-claude --setting-sources "project,local" --settings "%~dp0profiles\cc-origin.json"
+```bash
+bash ~/cc-dual-launcher/install_services.sh
 ```
 
-### `cc_switch.bat`
+This creates Finder Quick Actions: right-click any folder → Quick Actions → "CC Origin Here" / "CC Ollama Here" / "CC Switch Here".
 
-```bat
-@echo off
-REM === Claude Code Switch: third-party provider via CC Switch ===
-REM CC Switch manages ~/.claude/settings.json automatically.
-REM Configure your third-party provider in CC Switch UI before first use.
-set "ANTHROPIC_API_KEY="
+### Phase 5 — Verify
 
-claude
-```
-
-Note: No `--settings` flag — CCSwitch controls the provider externally.
-
-### `sync_origin_plugins.ps1`
-
-```powershell
-## Sync shared settings from ~/.claude/settings.json into cc-origin.json
-## Called by cc_origin.bat before launching Claude Code
-##
-## Strategy: copy ALL fields from user settings EXCEPT profile-specific ones (env, model).
-## This ensures plugins, permissions, MCP servers, and any future settings stay in sync.
-
-$userSettings = "$env:USERPROFILE\.claude\settings.json"
-$originProfile = "$PSScriptRoot\profiles\cc-origin.json"
-
-if (-not (Test-Path $userSettings) -or -not (Test-Path $originProfile)) {
-    exit 0
-}
-
-$user = Get-Content $userSettings -Raw | ConvertFrom-Json
-$origin = Get-Content $originProfile -Raw | ConvertFrom-Json
-
-# Fields that are profile-specific and must NOT be overwritten
-$skipFields = @("env", "model")
-
-$changed = $false
-foreach ($prop in $user.PSObject.Properties) {
-    if ($skipFields -contains $prop.Name) { continue }
-
-    $originVal = $origin.PSObject.Properties[$prop.Name]
-    $newJson = $prop.Value | ConvertTo-Json -Depth 10 -Compress
-    $oldJson = if ($originVal) { $originVal.Value | ConvertTo-Json -Depth 10 -Compress } else { "" }
-
-    if ($newJson -ne $oldJson) {
-        if ($originVal) {
-            $originVal.Value = $prop.Value
-        } else {
-            $origin | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $prop.Value
-        }
-        $changed = $true
-    }
-}
-
-if ($changed) {
-    $origin | ConvertTo-Json -Depth 10 | Set-Content $originProfile -Encoding UTF8
-}
-```
-
-### `profiles/cc-origin.json`
-
-Substitute user-provided values into this template. This file is the single source of truth for the OpenRouter profile.
-
-```json
-{
-    "env":  {
-                "ANTHROPIC_AUTH_TOKEN":  "{OPENROUTER_KEY}",
-                "ANTHROPIC_BASE_URL":  "{OPENROUTER_BASE_URL}",
-                "API_TIMEOUT_MS":  "3000000",
-                "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC":  "1"
-                {PROXY_JSON_LINES}
-            }
-}
-```
-
-Substitutions:
-- `{OPENROUTER_KEY}` → from Phase 1
-- `{OPENROUTER_BASE_URL}` → from Phase 1
-- `{PROXY_JSON_LINES}` → if proxy provided: `,\n                "HTTP_PROXY":  "{HTTP_PROXY}",\n                "HTTPS_PROXY":  "{HTTPS_PROXY}"`; if none: empty string
-- Plugins and marketplaces are NOT included in this template — `sync_origin_plugins.ps1` populates them automatically from the user's existing `~/.claude/settings.json` on first launch
-
-### `cc_launcher.reg`
-
-Replace `{INSTALL_DIR}` with the installation path using `\\` for backslashes.
-
-```reg
-Windows Registry Editor Version 5.00
-
-[-HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeOrigin]
-[-HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeOrigin]
-[-HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeSwitch]
-[-HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeSwitch]
-
-[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeOrigin]
-@="Claude Code Origin Here"
-"Icon"="C:\\Windows\\System32\\cmd.exe"
-
-[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeOrigin\command]
-@="wt.exe -d \"%V\" --title \"CC Origin: %V\" cmd /k \"{INSTALL_DIR}\\cc_origin.bat\""
-
-[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeOrigin]
-@="Claude Code Origin Here"
-"Icon"="C:\\Windows\\System32\\cmd.exe"
-
-[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeOrigin\command]
-@="wt.exe -d \"%1\" --title \"CC Origin: %1\" cmd /k \"{INSTALL_DIR}\\cc_origin.bat\""
-
-[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeSwitch]
-@="Claude Code Switch Here"
-"Icon"="C:\\Windows\\System32\\cmd.exe"
-
-[HKEY_CLASSES_ROOT\Directory\Background\shell\ClaudeCodeSwitch\command]
-@="wt.exe -d \"%V\" --title \"CC Switch: %V\" cmd /k \"{INSTALL_DIR}\\cc_switch.bat\""
-
-[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeSwitch]
-@="Claude Code Switch Here"
-"Icon"="C:\\Windows\\System32\\cmd.exe"
-
-[HKEY_CLASSES_ROOT\Directory\shell\ClaudeCodeSwitch\command]
-@="wt.exe -d \"%1\" --title \"CC Switch: %1\" cmd /k \"{INSTALL_DIR}\\cc_switch.bat\""
-```
-
-## Phase 4 — Register context menu (require explicit confirmation)
-
-After writing `cc_launcher.reg`, ask the user:
-
-> "The registry file is ready. Do you want me to merge it now? This adds two right-click entries ('Claude Code Origin Here' and 'Claude Code Switch Here'). You can undo it by deleting the ClaudeCodeOrigin and ClaudeCodeSwitch keys in regedit under HKEY_CLASSES_ROOT\Directory\shell\ and HKEY_CLASSES_ROOT\Directory\Background\shell\."
-
-If the user confirms: run `reg import "{INSTALL_DIR}\cc_launcher.reg"` via Bash. If it fails due to permissions, tell the user to run the command manually in an elevated CMD/PowerShell.
-
-## Phase 5 — Verify
-
-1. List all created files using `Bash find` on `INSTALL_DIR` and confirm each exists
-2. Report the final tree, masking credentials:
-   - Show only first 8 chars of any API key + `***`
-   - Show proxy URLs as `***`
-
-Final structure:
-```
-{INSTALL_DIR}\
-├── cc_origin.bat              ← right-click "Claude Code Origin Here"
-├── cc_switch.bat              ← right-click "Claude Code Switch Here"
-├── sync_origin_plugins.ps1    ← syncs plugins from user settings
-├── cc_launcher.reg            ← context menu registry entries
-└── profiles\
-    └── cc-origin.json         ← OpenRouter config (single source of truth)
-```
-
-Note: **cc-switch.json is intentionally NOT created** — CC Switch manages its own settings externally.
+1. List all created files and confirm each exists
+2. Report the final tree, masking credentials (show only first 8 chars of any API key + `***`)
+3. Test: run each launcher script once to confirm sync_plugins runs without errors
 
 ## Notes
 
 - **API keys are credentials** — never log or display full keys. Mask all tokens in output.
-- **Backslash handling** — use `%~dp0` in batch files for self-locating paths. Use `\\` in .reg files.
-- **CCSwitch is external** — cc_switch.bat passes no credentials; CC Switch must be configured in its own UI before first use.
-- **sync_origin_plugins.ps1** runs on every cc-origin launch and silently keeps plugins/marketplaces in sync with the user's main settings. This is normal and expected.
+- **Backslash handling** — use `%~dp0` in Windows bat files for self-locating paths. Use `\\` in .reg files.
+- **CC Switch is external** — cc_switch does not pass credentials; CC Switch must be configured in its own UI before first use.
+- **sync_plugins** runs on every launch and silently keeps plugins/marketplaces/permissions in sync across all profiles + user settings. This is normal and expected.
 - **The registry only adds entries** — it does not modify or remove any existing Claude Code entries.
+- **Ollama** must be running (`ollama serve`) with the model already pulled before launching cc_ollama.
