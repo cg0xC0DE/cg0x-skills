@@ -1,27 +1,15 @@
 ---
 name: cg0x-frame
 command: frame
+alwaysApply: true
 description: >
-  Executes the Frame Method (反路径锁定多框架分析法) — a structured anti-premature-convergence
-  analysis tool for exploration-stage problems. Opens 3–5 genuinely distinct interpretive
-  frames, develops each with assumptions/blind-spots/failure-conditions, and preserves
-  tension between frames rather than synthesizing prematurely.
-
-  Use when the user faces judgment calls, route selection, product direction, strategy,
-  narrative framing, complex tradeoffs, or any problem where locking onto one path too
-  early would be costly.
-
-  Trigger on explicit commands: "/frame", "用 Frame 法分析", "多框架分析", "frame method",
-  "帮我展开几条路径", "不要急着下结论", "先把问题拆开看", "exploration stage",
-  "我不想要一个答案，我想要地图", "反收敛", "多视角分析".
-
-  Also trigger automatically when the user asks broad open-ended analytical questions such as:
-  "分析一下…", "怎么看…局势/趋势/现象", "…的利弊", "…该怎么选", "帮我理一下…",
-  "这个问题怎么想", "有哪些角度", "拆解一下", "从不同视角看", "analyze", "what are the
-  perspectives on", "pros and cons", "how should I think about", "break down", "trade-offs".
-  These are questions where locking onto one path too early would be costly.
-
-  Do NOT use for simple factual questions, debugging steps, code execution, or direct action tasks.
+  Always-on thinking discipline. For every user message, silently judge whether the
+  Frame Method (反路径锁定多框架分析法) should activate. If the problem involves
+  judgment calls, route selection, strategy, complex tradeoffs, open-ended analysis,
+  narrative framing, or any situation where locking onto one path too early would be
+  costly — activate and follow the full protocol below. If the problem is a simple
+  factual question, debugging, code execution, or direct action task — skip silently,
+  no need to mention the method at all. The user can also force activation with /frame.
 ---
 
 # Frame Method — 反路径锁定多框架分析法
