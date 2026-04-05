@@ -1,27 +1,27 @@
 ---
 name: cg0x-frame
-command: frame
+command: cg0x-frame
 alwaysApply: true
 description: >
   Frame Method (反路径锁定多框架分析法) with on/off toggle.
 
   This skill supports three modes:
 
-  1. "/frame on"  — Enable always-on mode. From now on, silently judge every user
+  1. "/cg0x-frame on"  — Enable always-on mode. From now on, silently judge every user
      message: if the problem involves judgment calls, strategy, open-ended analysis,
      complex tradeoffs, or any situation where premature convergence is risky, activate
      the full Frame Method protocol below. If it's a simple fact, debugging, or execution
      task, skip silently. Respond with: "🟢 Frame Method: always-on. Will auto-activate
      on analytical questions."
 
-  2. "/frame off" — Disable always-on mode. Stop auto-judging. The method is dormant
-     until explicitly invoked. Respond with: "🔴 Frame Method: off. Use /frame <question>
+  2. "/cg0x-frame off" — Disable always-on mode. Stop auto-judging. The method is dormant
+     until explicitly invoked. Respond with: "🔴 Frame Method: off. Use /cg0x-frame <question>
      to invoke manually."
 
-  3. "/frame <question>" — One-shot activation regardless of on/off state. Apply the
+  3. "/cg0x-frame <question>" — One-shot activation regardless of on/off state. Apply the
      full Frame Method to the given question this one time.
 
-  Default state at session start: OFF (dormant). User must /frame on to enable auto-judging.
+  Default state at session start: OFF (dormant). User must /cg0x-frame on to enable auto-judging.
 ---
 
 # Frame Method — 反路径锁定多框架分析法
