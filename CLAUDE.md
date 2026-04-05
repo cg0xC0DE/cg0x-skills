@@ -10,12 +10,11 @@ Skills are organized into plugin categories in `marketplace.json`:
 
 ```
 skills/
-└── [dev-tools]                    # Development & automation
-    ├── cg0x-init-maker/               # Windows init.bat generator
-    ├── cg0x-dev-standards/            # Python web project conventions
-    ├── cg0x-subagent-team/            # Multi-agent team management
-    ├── cg0x-service-guardian/         # Local service healthcheck generator
-    └── cg0x-mq-event/                   # cmd-patrol MQ event publishing guide
+└── [dev-tools]
+    ├── cg0x-cc-dual-launcher/         # Multi-provider Claude Code launcher
+    ├── cg0x-deathcraft/               # Death-Transmigration character generator
+    ├── cg0x-frame-analysis/           # Anti Path Lock Multi Frame Analysis
+    └── cg0x-project-launcher/         # Remote-first 8-phase project launcher
 ```
 
 Each skill contains:

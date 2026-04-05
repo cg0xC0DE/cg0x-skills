@@ -1,7 +1,7 @@
 ---
 name: cg0x-project-launcher
 description: >
-  Merges init-maker and dev-standards into a single remote-first project launch skill.
+  Remote-first project launch skill.
   Detects environment, scaffolds project, installs deps, collects credentials,
   configures nginx, starts services with watchdog, exposes via ngrok, and verifies
   all three access paths (localhost / nginx / ngrok) return HTTP 200.
