@@ -1,6 +1,5 @@
 ---
 name: cg0x-frame
-command: cg0x-frame
 alwaysApply: true
 description: >
   Frame Method (反路径锁定多框架分析法) with on/off toggle.

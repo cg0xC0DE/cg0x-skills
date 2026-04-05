@@ -5,78 +5,26 @@
   },
   "metadata": {
     "description": "Skills shared by cg0x for development workflow and project automation",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "plugins": [
     {
-      "name": "cg0x-agent-memory",
-      "description": "Three-tier memory system (short/mid/long-term) with session compression and archive search",
+      "name": "cg0x",
+      "description": "Development, deployment, and project automation skills by cg0x",
       "source": "./",
       "strict": false,
-      "skills": ["./skills/cg0x-agent-memory"]
-    },
-    {
-      "name": "cg0x-cc-dual-launcher",
-      "description": "Deploy dual Claude Code provider configurations on Windows with right-click context menus",
-      "source": "./",
-      "strict": false,
-      "skills": ["./skills/cg0x-cc-dual-launcher"]
-    },
-    {
-      "name": "cg0x-deathcraft",
-      "description": "Death-Transmigration character persona generator — auto-generates SOUL.md + IDENTITY.md",
-      "source": "./",
-      "strict": false,
-      "skills": ["./skills/cg0x-deathcraft"]
-    },
-    {
-      "name": "cg0x-dev-standards",
-      "description": "Cross-platform Python web project standards: tech stack, structure, watchdog scripts, credentials",
-      "source": "./",
-      "strict": false,
-      "skills": ["./skills/cg0x-dev-standards"]
-    },
-    {
-      "name": "cg0x-frame",
-      "description": "Frame Method (反路径锁定多框架分析法) — structured anti-premature-convergence analysis tool",
-      "source": "./",
-      "strict": false,
-      "skills": ["./skills/cg0x-frame"]
-    },
-    {
-      "name": "cg0x-init-maker",
-      "description": "Generate cross-platform one-click init scripts (init.cmd + init.sh) for open-source projects",
-      "source": "./",
-      "strict": false,
-      "skills": ["./skills/cg0x-init-maker"]
-    },
-    {
-      "name": "cg0x-mq-event",
-      "description": "Integrate with cmd-patrol MQ for reporting skipped/failed/manual-attention events",
-      "source": "./",
-      "strict": false,
-      "skills": ["./skills/cg0x-mq-event"]
-    },
-    {
-      "name": "cg0x-project-launcher",
-      "description": "Full 8-phase remote project launch: env detect → scaffold → deps → credentials → nginx → start → ngrok → health check",
-      "source": "./",
-      "strict": false,
-      "skills": ["./skills/cg0x-project-launcher"]
-    },
-    {
-      "name": "cg0x-service-guardian",
-      "description": "Generate Python healthcheck scripts with retry diagnosis, port guard, and zombie cleanup",
-      "source": "./",
-      "strict": false,
-      "skills": ["./skills/cg0x-service-guardian"]
-    },
-    {
-      "name": "cg0x-subagent-team",
-      "description": "Manage multi-agent team composition, model priority, role assignment, and coding mode dispatch",
-      "source": "./",
-      "strict": false,
-      "skills": ["./skills/cg0x-subagent-team"]
+      "skills": [
+        "./skills/cg0x-agent-memory",
+        "./skills/cg0x-cc-dual-launcher",
+        "./skills/cg0x-deathcraft",
+        "./skills/cg0x-dev-standards",
+        "./skills/cg0x-frame",
+        "./skills/cg0x-init-maker",
+        "./skills/cg0x-mq-event",
+        "./skills/cg0x-project-launcher",
+        "./skills/cg0x-service-guardian",
+        "./skills/cg0x-subagent-team"
+      ]
     }
   ]
 }
