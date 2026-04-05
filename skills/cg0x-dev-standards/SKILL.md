@@ -72,7 +72,7 @@ class LLMCredentials:
 ## Network Architecture
 
 - **Frontend → Backend**: Use ngrok domain (not localhost) for API calls
-- **nginx**: Separate location blocks for frontend and backend with rewrite routing
+- **nginx**: Separate location blocks — `/<project>/` for frontend, `/<project>-service/` for backend API
 
 ## Standard Workflow
 
@@ -296,18 +296,18 @@ Edit nginx.conf to add location blocks.
 **C. Add location blocks:**
 ```nginx
 server {
-    listen 8080;
+    listen 80;
     server_name localhost;
 
-    # Frontend (static files)
+    # Frontend (static files via proxy to Python http.server)
     location /PROJECT_NAME/ {
-        root /path/to/PROJECT_NAME;
-        index index.html;
+        rewrite ^/PROJECT_NAME/(.*)$ /$1 break;
+        proxy_pass http://localhost:FRONTEND_PORT/;
     }
 
     # Backend API proxy
-    location /PROJECT_NAME/api/ {
-        rewrite ^/PROJECT_NAME/api/(.*) /$1 break;
+    location /PROJECT_NAME-service/ {
+        rewrite ^/PROJECT_NAME-service/(.*) /$1 break;
         proxy_pass http://127.0.0.1:BACKEND_PORT/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -327,19 +327,33 @@ curl localhost:4040/api/tunnels
 ```
 
 **F. Access URLs:**
-- Local: http://localhost:8080/PROJECT_NAME/
-- Public: https://YOUR-NGROK-URL.ngrok-free.dev/PROJECT_NAME/
+- Frontend (local): http://localhost/PROJECT_NAME/
+- Frontend (public): https://YOUR-NGROK-URL.ngrok-free.dev/PROJECT_NAME/
+- Backend API (local): http://localhost/PROJECT_NAME-service/
+- Backend API (public): https://YOUR-NGROK-URL.ngrok-free.dev/PROJECT_NAME-service/
 
 **G. Frontend API configuration:**
 ```javascript
 // Use ngrok domain for backend API calls
-const API_BASE = 'https://YOUR-NGROK-URL.ngrok-free.dev/PROJECT_NAME/api';
+// Suffix follows nginx location: /<project>-service/
+const API_BASE = 'https://YOUR-NGROK-URL.ngrok-free.dev/PROJECT_NAME-service';
+
+// IMPORTANT: Every fetch() call MUST include the ngrok-skip-browser-warning header
+// to bypass ngrok's free-tier interstitial page. Without it, API requests return HTML
+// instead of JSON and the frontend shows "网络错误".
+fetch(`${API_BASE}/endpoint`, {
+  method: 'GET',   // or 'POST'
+  headers: {
+    'ngrok-skip-browser-warning': 'true',
+    // ... other headers
+  },
+});
 ```
 
 **H. Deployment Verification:**
 ```cmd
 REM 1. Check nginx is running
-curl -I http://localhost:8080/PROJECT_NAME/
+curl -I http://localhost/PROJECT_NAME/
 
 REM 2. Verify all routes return 200
 REM    - Frontend page
@@ -362,8 +376,8 @@ For each project's frontend and backend, validate through all 3 access paths:
 
 | Access Path | Example URL |
 |-------------|-------------|
-| ngrok domain | `https://NGROK_URL/PROJECT_NAME/` |
-| nginx proxy | `http://localhost:8080/PROJECT_NAME/` |
+| ngrok domain | `https://NGROK_URL/PROJECT_NAME/` (frontend) / `https://NGROK_URL/PROJECT_NAME-service/` (backend) |
+| nginx proxy | `http://localhost/PROJECT_NAME/` (frontend) / `http://localhost/PROJECT_NAME-service/` (backend) |
 | localhost direct | `http://localhost:PORT/` |
 
 **Validation Criteria:**
@@ -404,4 +418,5 @@ For each project's frontend and backend, validate through all 3 access paths:
 - ✅ nginx proxy_pass to 127.0.0.1:BACKEND_PORT
 - ✅ ngrok tunnel (8080 → public) remains active
 - ✅ Frontend calls backend via ngrok domain
+- ✅ **Every frontend `fetch()` call MUST include `'ngrok-skip-browser-warning': 'true'` header** — ngrok free-tier returns an interstitial HTML page without it, causing JSON parse failures
 - ✅ All routes must return 200 for delivery

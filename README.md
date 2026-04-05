@@ -38,6 +38,19 @@ your-project/.claude/skills/cg0x-<skill-name>/SKILL.md
 
 技能分为一个插件分组 **dev-tools**，包含以下技能：
 
+### cg0x-deathcraft
+
+通过"死亡穿越"（Death-Transmigration）技法，自动生成角色人格文件（SOUL.md + IDENTITY.md）。
+
+**触发方式**：`/deathcraft 角色名` 或 `/deathcraft 角色名:角色描述`
+
+用户输入任意历史人物、文学角色或虚构角色名，skill 自动：识别角色 → 推断前世结局与关键人生阶段 → LLM 生成死亡穿越叙事 → 写入工作区 SOUL.md + IDENTITY.md。无需已知角色表，每次都是全新角色处理。
+
+```
+/deathcraft 虞姬
+/deathcraft 林晚星: 22岁都市女程序员
+```
+
 ### cg0x-project-launcher
 
 合并 init-maker + dev-standards 的单一远程上线 skill。一次执行完成从环境检测到 ngrok 公网暴露的全部流程。
@@ -229,11 +242,13 @@ cg0x-skills/
 │   │   └── SKILL.md
 │   ├── cg0x-mq-event/
 │   │   └── SKILL.md
-│   └── cg0x-agent-memory/
-│       ├── SKILL.md
-│       └── tools/
-│           ├── compact_session.py
-│           └── query_deep_memory.py
+│   ├── cg0x-agent-memory/
+│   │   ├── SKILL.md
+│   │   └── tools/
+│   │       ├── compact_session.py
+│   │       └── query_deep_memory.py
+│   └── cg0x-deathcraft/
+│       └── SKILL.md
 ├── CLAUDE.md
 ├── README.md
 └── .gitignore

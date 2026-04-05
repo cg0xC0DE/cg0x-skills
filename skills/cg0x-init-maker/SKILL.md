@@ -165,12 +165,12 @@ Examples:
 #### Reference implementation pattern
 
 ```bat
-:: --- winget pre-check ---
+REM --- winget pre-check ---
 set WINGET_AVAILABLE=0
 winget --version >nul 2>&1
 if not errorlevel 1 set WINGET_AVAILABLE=1
 
-:: ======== Required dependency example ========
+REM ======== Required dependency example ========
 :CHECK_PYTHON
 python --version >nul 2>&1
 if not errorlevel 1 goto PYTHON_OK
@@ -195,7 +195,7 @@ goto CHECK_PYTHON
 :PYTHON_OK
 echo "[OK] Python detected."
 
-:: ======== Optional dependency example ========
+REM ======== Optional dependency example ========
 :CHECK_FFMPEG
 where ffmpeg >nul 2>nul
 if not errorlevel 1 goto FFMPEG_OK
@@ -253,7 +253,7 @@ echo "============================================================"
 echo "  Phase 2: Automated Installation"
 echo "============================================================"
 
-:: Use goto to avoid nested if/else ( ... ) blocks
+REM Use goto to avoid nested if/else ( ... ) blocks
 if exist "venv" goto SKIP_VENV
 echo "[INFO] Creating Python virtual environment..."
 python -m venv venv
@@ -375,6 +375,7 @@ Only after gathering this information should you generate the script.
 - End the script with a summary banner indicating success.
 - Keep the script in a single file — do not split into multiple `.bat` files.
 - **Wrap all `echo` string arguments in double quotes** (e.g., `echo "[OK] Done."`). Without quotes, special characters like `(`, `)`, `&`, `|`, `>`, `;`, and non-ASCII text can cause cmd.exe to misinterpret parts of the string as commands.
+- **Use `REM` instead of `::` for comments.** `::` is actually a label alias, not a true comment. Under `chcp 65001`, multi-byte characters (Chinese, Japanese, etc.) in `::` lines cause cmd.exe to miscalculate line byte boundaries, corrupting subsequent command lines. `REM` is a real command and is immune to this issue.
 - **Ensure the `.bat` file uses CRLF line endings.** Files with Unix-style LF endings cause cmd.exe to merge or split lines unpredictably, leading to seemingly random parse errors.
 
 ### Batch Syntax Pitfalls
@@ -585,6 +586,7 @@ echo "[OK] credentials.py created."
 | Use `( ... ) > file` to write multi-line file content | Use sequential `>` and `>>` redirects — parenthesized blocks break on special chars and Unicode |
 | Use `if (...) else (...)` with multiple statements | Prefer `goto`-based flow for non-trivial branching |
 | Leave `echo` arguments unquoted | Always wrap `echo` text in double quotes to prevent misparse |
+| Use `::` comments with non-ASCII text | Use `REM` instead — `::` is a label alias and breaks under `chcp 65001` with multi-byte chars |
 | Save `.bat` with LF line endings | Must use CRLF — LF causes cmd.exe to merge/split lines randomly |
 | Only generate Windows script | Always generate both `init.cmd` and `init.sh` unless user specifies one platform |
 | Use `which` to check commands on macOS | Use `command -v` — `which` is not POSIX and may be absent |
