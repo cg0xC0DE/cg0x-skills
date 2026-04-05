@@ -16,9 +16,8 @@
       "skills": [
         "./skills/cg0x-cc-dual-launcher",
         "./skills/cg0x-deathcraft",
-        "./skills/cg0x-frame",
-        "./skills/cg0x-project-launcher",
-        "./skills/cg0x-service-guardian"
+        "./skills/cg0x-frame-analysis",
+        "./skills/cg0x-project-launcher"
       ]
     }
   ]

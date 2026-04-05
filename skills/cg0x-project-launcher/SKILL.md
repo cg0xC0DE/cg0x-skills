@@ -408,41 +408,40 @@ Public URL: https://xxxx.ngrok-free.dev/
 
 列出挂掉的链路 + 修复建议，不自动尝试修复。
 
----
+### Anti-Misdiagnosis Checklist
 
-## Critical Rules（全部继承自原skill）
+生成健康检查脚本时，必须包含以下防误诊机制：
 
-| 规则 | 来源 |
-|------|------|
-| `echo` 字符串必须用双引号包裹 | init-maker |
-| `REM` 而非 `::` 做注释（`chcp 65001` 下多字节字符会破坏解析） | init-maker |
-| Windows 脚本用 CRLF，macOS 用 LF | init-maker |
-| 多行文件写入用 `> ` + `>>`，不用 `(...) > file` | init-maker |
-| Required deps 缺失必须阻塞 + 重试循环 | init-maker |
-| 每条缺失信息必须包含 Impact 说明 | init-maker |
-| Optional deps 缺失警告后允许跳过 | init-maker |
-| `goto` 替代复杂 `if/else` 嵌套 | init-maker |
-| `ngrok-skip-browser-warning` 所有 fetch 必须带 | dev-standards |
-| `127.0.0.1` 而非 `localhost`（DNS延迟） | service-guardian |
-| venv 每个项目独立创建 | dev-standards |
-| port cleanup 每次启动前执行 | dev-standards |
-| watchdog loop 所有 start_* 脚本必须包含 | dev-standards |
+| # | 机制 | 防止的问题 |
+|---|------|----------|
+| 1 | 重试循环（≥ 3 次） | GC暂停/瞬时超时误报 |
+| 2 | Port timeout ≥ 5s | 慢响应误报 |
+| 3 | HTTP timeout ≥ 8s | 后端冷启动误报 |
+| 4 | 启动前 `is_port_in_use()` 检查 | 重复进程启动 |
+| 5 | 启动前 `kill_port_process()` 清理僵尸进程 | 僵尸进程占端口导致新进程绑定失败 |
+| 6 | 外部 URL 不触发自动重启 | 网络抖动触发误重启 |
+| 7 | 区分 `ConnectionRefused`（进程死了）vs `timeout`（进程忙） | 重启正在工作的服务 |
+| 8 | `127.0.0.1` 而非 `localhost` | DNS 解析增加探测延迟 |
 
 ---
 
-## service-guardian 关系
+## Critical Rules
 
-Phase 8 结束后输出提示：
-
-> 如需后台长期守护进程，运行 `/cg0x-service-guardian`
-
-不自动进入 guardian 流程。
-
----
-
-## subagent-team 关系
-
-与本 Pipeline 正交。如用户提到多Agent协作，单独触发 `/cg0x-subagent-team`。
+| 规则 |
+|------|
+| `echo` 字符串必须用双引号包裹 |
+| `REM` 而非 `::` 做注释（`chcp 65001` 下多字节字符会破坏解析） |
+| Windows 脚本用 CRLF，macOS 用 LF |
+| 多行文件写入用 `> ` + `>>`，不用 `(...) > file` |
+| Required deps 缺失必须阻塞 + 重试循环 |
+| 每条缺失信息必须包含 Impact 说明 |
+| Optional deps 缺失警告后允许跳过 |
+| `goto` 替代复杂 `if/else` 嵌套 |
+| `ngrok-skip-browser-warning` 所有 fetch 必须带 |
+| `127.0.0.1` 而非 `localhost`（DNS延迟） |
+| venv 每个项目独立创建 |
+| port cleanup 每次启动前执行 |
+| watchdog loop 所有 start_* 脚本必须包含 |
 
 ---
 
