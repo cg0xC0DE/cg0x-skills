@@ -21,3 +21,6 @@ venv/
 
 # Environment
 .env
+
+docs/
+test/
