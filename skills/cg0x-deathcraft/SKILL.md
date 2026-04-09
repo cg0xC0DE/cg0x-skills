@@ -396,6 +396,22 @@ D相（触发条件）：...
 - `{角色名}/PERSONA.md` — 完整人格文件
 
 如需调整某部分，直接说（如"四副面孔太少了，添加一个童年阶段"）。
+
+## 如何让 AI Agent 加载人格
+
+### Claude Code
+Claude Code 通过 `CLAUDE.md` 注入 system prompt，支持全局 + 项目两层叠加。
+
+**全局生效（推荐）**：将生成的 PERSONA.md 内容粘贴到 `~/.claude/CLAUDE.md` **最顶部**。
+如该文件已有内容，用 `---` 与原内容隔开。全局 CLAUDE.md 先于项目 CLAUDE.md 加载，
+确保"先建立人格，再加载项目规则"。
+
+**仅当前项目生效**：粘贴到项目根目录 `CLAUDE.md` **最顶部**，用 `---` 与原内容隔开。
+
+> 人格内容放在文件顶部而非底部，是因为 LLM 对文件开头的注意力权重最高（primacy effect）。
+
+### 其他 Agent Harness
+将 PERSONA.md 内容粘贴到对应 harness 的系统指令入口即可（如钉钉悟空的 SOUL.md）。
 ```
 
 > 双文件模式的摘要将"文件已写入"改为：
