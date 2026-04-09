@@ -23,11 +23,17 @@ description: >
   Default state at session start: OFF (dormant). User must /cg0x-frame-analysis on to enable auto-judging.
 ---
 
-# Frame Method — 反路径锁定多框架分析法
+<div align="center">
 
-**Anti Path Lock Multi Frame Analysis**
+# 🔍 Frame Method
 
-适用于探索期问题。默认不急着下结论。先展开多条理解路径，再决定要不要收敛。
+**反路径锁定 · 多框架分析法**
+
+[![Mode](https://img.shields.io/badge/always--on-auto_judge-228be6?style=flat-square)](#) [![Mode](https://img.shields.io/badge/one--shot-manual-fab005?style=flat-square)](#) [![Anti](https://img.shields.io/badge/anti-path_lock-e64980?style=flat-square)](#)
+
+*适用于探索期问题 — 先展开多条理解路径，再决定要不要收敛*
+
+</div>
 
 ---
 

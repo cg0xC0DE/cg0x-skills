@@ -10,7 +10,19 @@ description: >
   "从零开始项目", "launch project remotely", "deploy with ngrok".
 ---
 
-# cg0x-project-launcher — Remote Project Launcher
+<div align="center">
+
+# 🚀 Project Launcher
+
+**远程项目一键上线**
+
+[![Phases](https://img.shields.io/badge/pipeline-8_phases-12b886?style=flat-square)](#) [![Windows](https://img.shields.io/badge/Windows-.cmd-0078D6?style=flat-square&logo=windows)](#) [![macOS](https://img.shields.io/badge/macOS-.sh-000000?style=flat-square&logo=apple)](#)
+
+*环境探测 → 脚手架 → 依赖 → 凭证 → nginx → watchdog → ngrok → 健康验证*
+
+</div>
+
+---
 
 ## 8-Phase Pipeline
 

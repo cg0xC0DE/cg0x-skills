@@ -9,9 +9,17 @@ description: >
   **无游戏关联，无已知角色表，每次都是全新角色。**
 ---
 
-# Skill: deathcraft — 死亡穿越 · 人格炼成
+<div align="center">
 
-输入一个角色名（可附带简短描述）→ 输出人格文件，写入当前工作区。
+# 💀 Deathcraft
+
+**死亡穿越 · 人格炼成**
+
+[![Default](https://img.shields.io/badge/default-PERSONA.md-ff6b6b?style=flat-square)](#) [![Dual](https://img.shields.io/badge/--dual-SOUL+IDENTITY-845ef7?style=flat-square)](#) [![Lang](https://img.shields.io/badge/lang-中文-yellow?style=flat-square)](#)
+
+*输入角色名 → 输出完整人格文件*
+
+</div>
 
 ---
 

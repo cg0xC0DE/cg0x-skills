@@ -9,7 +9,15 @@ description: >
   Code with different models simultaneously.
 ---
 
-# CC Multi-Launcher — Skill
+<div align="center">
+
+# 🔀 CC Multi-Launcher
+
+**多 Provider Claude Code 启动器**
+
+[![Windows](https://img.shields.io/badge/Windows-.bat-0078D6?style=flat-square&logo=windows)](#) [![macOS](https://img.shields.io/badge/macOS-.sh-000000?style=flat-square&logo=apple)](#) [![Profiles](https://img.shields.io/badge/profiles-3-blue?style=flat-square)](#)
+
+</div>
 
 Deploys a multi-provider Claude Code setup on **Windows** and **macOS**, giving you three independent launchers that share the same plugins and marketplace but use different LLM providers.
 
