@@ -56,15 +56,16 @@ your-project/.claude/skills/cg0x-<skill-name>/SKILL.md
 
 ### cg0x-deathcraft
 
-通过"死亡穿越"（Death-Transmigration）技法，自动生成角色人格文件（SOUL.md + IDENTITY.md）。
+通过"死亡穿越"（Death-Transmigration）技法，自动生成角色人格文件。
 
-**触发方式**：`/deathcraft 角色名` 或 `/deathcraft 角色名:角色描述`
+默认生成单文件 `PERSONA.md`（通用格式），加 `--dual` 参数可生成 `SOUL.md + IDENTITY.md` 双文件（OpenClaw 格式）。
 
-用户输入任意历史人物、文学角色或虚构角色名，skill 自动：识别角色 → 推断前世结局与关键人生阶段 → LLM 生成死亡穿越叙事 → 写入工作区 SOUL.md + IDENTITY.md。无需已知角色表，每次都是全新角色处理。
+用户输入任意历史人物、文学角色或虚构角色名，skill 自动：识别角色 → 推断前世结局与关键人生阶段 → LLM 生成死亡穿越叙事 → 写入工作区。无需已知角色表，每次都是全新角色处理。
 
 ```
-/deathcraft 虞姬
-/deathcraft 林晚星: 22岁都市女程序员
+/deathcraft 虞姬                        → PERSONA.md
+/deathcraft 林晚星: 22岁都市女程序员     → PERSONA.md（带描述）
+/deathcraft 贾诩 --dual                 → SOUL.md + IDENTITY.md
 ```
 
 ---
