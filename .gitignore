@@ -24,3 +24,7 @@ venv/
 
 docs/
 test/
+
+.claude/
+.claude-plugin/
+.windsurf/
