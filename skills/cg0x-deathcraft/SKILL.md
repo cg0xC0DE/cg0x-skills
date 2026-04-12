@@ -1,13 +1,14 @@
 ---
 name: cg0x-deathcraft
 description: >
-  通用"死亡穿越"（Death-Transmigration）人格文件生成器。
-  用户输入 `/deathcraft 角色名` 或 `/deathcraft 角色名:描述`，
-  自动执行：识别角色 → LLM死穿叙事生成 → 写入工作区 PERSONA.md。
-  加 `--dual` 参数可生成 SOUL.md + IDENTITY.md 双文件（OpenClaw 格式）。
-  加 `--deep` 参数可生成深度模式人格（含状态→偏好映射表 + 局部刷新锚点）。
-  当用户提到要创建角色、制作人格文件、生成角色背景、死亡穿越叙事时，激活本skill。
-  **无游戏关联，无已知角色表，每次都是全新角色。**
+  Universal Death-Transmigration persona file generator.
+  User inputs `/deathcraft <character>` or `/deathcraft <character>: <description>`,
+  auto-executes: identify character → generate death-transmigration narrative → write PERSONA.md to workspace.
+  `--dual` flag outputs SOUL.md + IDENTITY.md dual-file format (OpenClaw).
+  `--deep` flag enables deep mode (state-to-preference mapping table + local refresh anchors).
+  Trigger when the user mentions creating characters, making persona files, generating character backgrounds,
+  death-transmigration narratives, or building AI agent personalities.
+  No game affiliation, no fixed character roster — every generation is unique.
 ---
 
 <div align="center">
